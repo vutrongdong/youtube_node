@@ -1,7 +1,7 @@
 var fs = require('fs');
 var readline = require('readline');
-var {google} = require('googleapis');
 var OAuth2 = google.auth.OAuth2;
+var service = google.youtube('v3');
 
 // If modifying these scopes, delete your previously saved credentials
 // at ~/.credentials/youtube-nodejs-quickstart.json
@@ -16,8 +16,8 @@ fs.readFile('client_secret.json', function processClientSecrets(err, content) {
     console.log('Error loading client secret file: ' + err);
     return;
   }
-  // Authorize a client with the loaded credentials, then call the YouTube API.
-  authorize(JSON.parse(content), getChannel);
+
+  authorize(JSON.parse(content), listVideoChannel);
 });
 
 /**
@@ -43,7 +43,6 @@ function authorize(credentials, callback) {
     }
   });
 }
-
 /**
  * Get and store new token after prompting for user authorization, and then
  * execute the given callback with the authorized OAuth2 client.
@@ -100,21 +99,47 @@ function storeToken(token) {
  *
  * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
  */
-function getChannel(auth) {
-  channelSub = 'UC4MauP5aEeRNSuwOM9a4Vvg';
-  videoId = 'r-yxNNO1EI8'
+function subscribeYoutube(auth) {
+  channelSub = 'UClyA28-01x4z60eWQ2kiNbA';
   var service = google.youtube('v3');
-  service.playlistItems.list({
+  service.subscriptions.insert({
+    "auth": auth,
+    "part": "snippet",
+    "resource": {
+      "snippet": {
+        "resourceId": {
+          "kind": "youtube#channel",
+          "channelId": channelSub
+        }
+      }
+    }
+  })
+  .then(function(response) {
+      console.log(response)
+  },
+  function(err) { console.error("Execute error", err); });
+}
+
+let channelListVideo = [];
+
+function listVideoChannel(auth, pageToken = '') {
+  playlistId = 'UUWe3kkV742_VwUJCHOiCw1A';
+  var params = {
     "auth": auth,
     "part": "snippet,contentDetails",
     "maxResults": 50,
-    "playlistId": 'PLwu6VnpCwclyYsT4zwVwmd23hBs99wV1g'
-  })
+    "playlistId": playlistId
+  };
+  pageToken ? params['pageToken'] = pageToken : '';
+  service.playlistItems.list(params)
   .then(function(response) {
-          // Handle the results here (response.result has the parsed body).
-          response.data.items.forEach((item) => {
-            console.log(item.snippet.title)
-          })
-        },
-        function(err) { console.error("Execute error", err); });
+    channelListVideo = channelListVideo.concat(response.data.items); 
+    if(response.data.nextPageToken) {
+      let pageToken = response.data.nextPageToken;
+      listVideoChannel(auth, pageToken);
+    } else {
+      console.log(channelListVideo[200])
+    }
+  },
+  function(err) { console.error("Execute error", err); });
 }
